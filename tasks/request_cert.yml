@@ -1,0 +1,38 @@
+- name: Ensure Cockpit certs directory has correct SELinux label
+  file:
+    state: directory
+    path: /etc/cockpit/ws-certs.d
+    owner: root
+    group: root
+    mode: 0755
+    setype: cert_t
+
+- block:
+    - name: Check Kerberos TGT validity
+      command: klist -s
+      changed_when: false
+  rescue:
+    - name: Get Kerberos TGT
+      command:
+        cmd: kinit {{ kerberos_principal }}
+        stdin: "{{ kerberos_principal_password }}"
+
+- name: Request cert
+  command:
+    cmd: >
+      ipa-getcert request
+      -f /etc/cockpit/ws-certs.d/10-{{ ansible_fqdn }}.cert
+      -k /etc/cockpit/ws-certs.d/10-{{ ansible_fqdn }}.key
+      -D {{ ansible_fqdn }}
+      -K host/{{ ansible_fqdn }}
+      -m 0640
+      -o root:cockpit-ws
+      -O root:root
+      -M 0644
+    creates: /etc/cockpit/ws-certs.d/10-{{ ansible_fqdn }}.cert
+
+- name: Start & enable certmonger service
+  service:
+    name: certmonger
+    state: started
+    enabled: true

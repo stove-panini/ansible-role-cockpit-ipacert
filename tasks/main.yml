@@ -1,0 +1,10 @@
+---
+- name: Check if cert already exists
+  stat:
+    path: /etc/cockpit/ws-certs.d/10-{{ ansible_fqdn }}.cert
+  register: cert
+
+- name: Continue with role if cert does not yet exist
+  include_tasks:
+    file: request_cert.yml
+  when: not cert.stat.exists
